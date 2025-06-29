@@ -37,13 +37,13 @@ ENV/
 instance/
 .webassets-cache
 
-# Neural Network / ML specific
-*.h5
-*.keras
-*.pkl
-*.model
-models/
-checkpoints/
+# # Neural Network / ML specific
+# *.h5
+# *.keras
+# *.pkl
+# *.model
+# models/
+# checkpoints/
 
 # Environment variables and configurations
 .env

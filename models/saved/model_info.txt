@@ -1,0 +1,14 @@
+Air Quality Forecasting Model (10 seconds ahead)
+=======================================
+
+- air_quality_60k_model.h5: Time series forecasting model
+- scaler_60k.pkl: StandardScaler untuk preprocessing input data
+- label_encoder_60k.pkl: LabelEncoder untuk mapping nama kelas
+- time_config.pkl: Konfigurasi time window dan forecast horizon
+- air_quality_60k_model.tflite: Versi TensorFlow Lite
+
+Model Type: Time Series Forecasting with Monte Carlo Dropout
+Prediction Target: Air quality 10 seconds ahead
+Created: 2025-06-29 13:06:53
+Features: ['MQ7_CO_PPM', 'MQ135_CO2_PPM']
+Classes: ['Baik', 'Buruk', 'Sedang']

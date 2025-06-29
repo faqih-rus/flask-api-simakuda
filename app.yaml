@@ -1,0 +1,11 @@
+# Gunakan runtime yang sesuai dengan versi Python lokal Anda
+runtime: python310
+
+# Entrypoint untuk aplikasi Anda
+entrypoint: gunicorn -b :$PORT main:app
+
+# (Opsional) Pengaturan instance dan scaling
+instance_class: F1
+automatic_scaling:
+  min_instances: 0
+  max_instances: 1
