@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Prediksi Kualitas Udara</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input { width: 100%; padding: 8px; }
+        button { padding: 10px 15px; background: #007bff; color: white; border: none; cursor: pointer; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 5px; }
+        .quality-baik { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .quality-sedang { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .quality-tidak-sehat { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .confidence-bar { height: 20px; background: #e9ecef; margin-top: 5px; border-radius: 4px; overflow: hidden; }
+        .confidence-value { height: 100%; background: #007bff; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 2s linear infinite; margin: 20px auto; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .warning { background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; margin: 15px 0; border-radius: 5px; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 15px; margin: 15px 0; border-radius: 5px; }
+        .time-input {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        .time-input select {
+            padding: 8px;
+        }
+        .forecast-info {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <h1>Prediksi Kualitas Udara (10 Detik ke Depan)</h1>
+    <p>Sistem ini menggunakan model Neural Network berbasis time-series untuk memprediksi kualitas udara 10 detik ke depan berdasarkan konsentrasi gas dan faktor waktu.</p>
+    
+    <!-- Model not trained warning -->
+    <div id="model-warning" class="error" style="display: none;">
+        <h3>⚠️ Model Belum Tersedia</h3>
+        <p>Model neural network belum dilatih atau file model tidak ditemukan.</p>
+        <p>Silakan jalankan script <code>train_model.py</code> terlebih dahulu untuk melatih model, kemudian restart aplikasi Flask.</p>
+    </div>
+    
+    <form id="prediction-form">
+        <h3>Parameter Gas</h3>
+        <div class="form-group">
+            <label>Karbon Monoksida (CO) dalam PPM:</label>
+            <input type="number" step="0.1" name="co" placeholder="Contoh: 5.2" required>
+            <small>Rentang normal: 0-50 PPM</small>
+        </div>
+        <div class="form-group">
+            <label>Karbon Dioksida (CO₂) dalam PPM:</label>
+            <input type="number" step="1" name="co2" placeholder="Contoh: 800" required>
+            <small>Rentang normal: 400-5000 PPM</small>
+        </div>
+        
+        <h3>Parameter Waktu</h3>
+        <p><small>Waktu mempengaruhi prediksi berdasarkan pola aktivitas harian dan mingguan.</small></p>
+        
+        <div class="time-input">
+            <div>
+                <label>Jam:</label>
+                <select name="hour" id="hour-select">
+                    <!-- Will be populated with JS -->
+                </select>
+            </div>
+            <div>
+                <label>Menit:</label>
+                <select name="minute" id="minute-select">
+                    <!-- Will be populated with JS -->
+                </select>
+            </div>
+            <div>
+                <label>Hari:</label>
+                <select name="day_of_week">
+                    <option value="0">Senin</option>
+                    <option value="1">Selasa</option>
+                    <option value="2">Rabu</option>
+                    <option value="3">Kamis</option>
+                    <option value="4">Jumat</option>
+                    <option value="5">Sabtu</option>
+                    <option value="6">Minggu</option>
+                </select>
+            </div>
+        </div>
+        
+        <button type="submit">Analisis Kualitas Udara</button>
+    </form>
+    
+    <div class="loader" id="loader"></div>
+    
+    <div class="result" id="result" style="display: none;">
+        <h2>Hasil Prediksi Kualitas Udara (10 detik ke depan):</h2>
+        <h3>Status: <span id="quality-result"></span></h3>
+        <p>Tingkat kepercayaan prediksi: <span id="confidence-result"></span>%</p>
+        <div class="confidence-bar">
+            <div class="confidence-value" id="confidence-bar"></div>
+        </div>
+        
+        <div id="recommendation" style="margin-top: 15px;"></div>
+        
+        <h3 style="margin-top: 20px;">Detail Probabilitas:</h3>
+        <ul>
+            <li>Baik: <span id="prob-baik"></span>%</li>
+            <li>Sedang: <span id="prob-sedang"></span>%</li>
+            <li>Tidak Sehat: <span id="prob-tidak-sehat"></span>%</li>
+        </ul>
+        
+        <div class="forecast-info">
+            <p>Prediksi ini menunjukkan kualitas udara yang diperkirakan akan terjadi <strong>10 detik dari sekarang</strong> berdasarkan tren gas dan pola waktu.</p>
+        </div>
+        
+        <p style="margin-top: 15px; font-size: 0.9em;">Waktu prediksi: <span id="prediction-time"></span> ms</p>
+    </div>
+
+    <script>
+        // Populate time selects
+        const hourSelect = document.getElementById('hour-select');
+        const minuteSelect = document.getElementById('minute-select');
+        
+        // Populate hours (0-23)
+        for (let i = 0; i < 24; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = i.toString().padStart(2, '0');
+            hourSelect.appendChild(option);
+        }
+        
+        // Populate minutes (0, 15, 30, 45)
+        for (let i = 0; i < 60; i += 15) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = i.toString().padStart(2, '0');
+            minuteSelect.appendChild(option);
+        }
+        
+        // Set current time as default
+        const now = new Date();
+        hourSelect.value = now.getHours();
+        // Round to nearest 15 minutes
+        minuteSelect.value = Math.floor(now.getMinutes() / 15) * 15;
+        document.querySelector('[name="day_of_week"]').value = now.getDay() === 0 ? 6 : now.getDay() - 1;
+        
+        // Check if model is ready
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                const response = await fetch('/model_status');
+                const data = await response.json();
+                
+                if (!data.model_exists) {
+                    document.getElementById('model-warning').style.display = 'block';
+                    document.getElementById('prediction-form').style.opacity = '0.5';
+                    document.querySelector('button[type="submit"]').disabled = true;
+                }
+            } catch (error) {
+                console.error("Error checking model status:", error);
+            }
+        });
+    
+        document.getElementById('prediction-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Show loader
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('result').style.display = 'none';
+            
+            const formData = {
+                co: parseFloat(e.target.co.value),
+                co2: parseFloat(e.target.co2.value),
+                hour: parseInt(e.target.hour.value),
+                minute: parseInt(e.target.minute.value),
+                day_of_week: parseInt(e.target.day_of_week.value)
+            };
+            
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                // Hide loader
+                document.getElementById('loader').style.display = 'none';
+                
+                if (data.error) {
+                    alert(`Error: ${data.error}\n${data.message || ''}`);
+                } else {
+                    // Display results
+                    const resultDiv = document.getElementById('result');
+                    
+                    // Set quality status and apply appropriate class
+                    const qualityResult = document.getElementById('quality-result');
+                    qualityResult.textContent = data.prediction;
+                    
+                    // Remove previous classes
+                    resultDiv.classList.remove('quality-baik', 'quality-sedang', 'quality-tidak-sehat');
+                    
+                    // Add appropriate class based on prediction
+                    if (data.prediction === 'Baik') {
+                        resultDiv.classList.add('quality-baik');
+                    } else if (data.prediction === 'Sedang') {
+                        resultDiv.classList.add('quality-sedang');
+                    } else {
+                        resultDiv.classList.add('quality-tidak-sehat');
+                    }
+                    
+                    // Set confidence
+                    document.getElementById('confidence-result').textContent = data.confidence.toFixed(1);
+                    document.getElementById('confidence-bar').style.width = `${data.confidence}%`;
+                    
+                    // Set probabilities
+                    document.getElementById('prob-baik').textContent = (data.class_probabilities.Baik || 0).toFixed(1);
+                    document.getElementById('prob-sedang').textContent = (data.class_probabilities.Sedang || 0).toFixed(1);
+                    document.getElementById('prob-tidak-sehat').textContent = (data.class_probabilities['Tidak Sehat'] || 0).toFixed(1);
+                    
+                    // Set prediction time
+                    document.getElementById('prediction-time').textContent = data.prediction_time_ms.toFixed(2);
+                    
+                    // Set recommendation based on air quality
+                    const recommendation = document.getElementById('recommendation');
+                    if (data.prediction === 'Baik') {
+                        recommendation.innerHTML = '<p><strong>Rekomendasi:</strong> Kualitas udara diprediksi akan tetap baik. Aman untuk beraktivitas normal.</p>';
+                    } else if (data.prediction === 'Sedang') {
+                        recommendation.innerHTML = '<p><strong>Rekomendasi:</strong> Kualitas udara diprediksi akan menjadi sedang. Hindari aktivitas berat jika Anda memiliki masalah pernapasan.</p>';
+                    } else {
+                        recommendation.innerHTML = '<p><strong>Rekomendasi:</strong> Kualitas udara diprediksi akan menjadi tidak sehat. Disarankan untuk memakai masker dan mengurangi aktivitas di luar ruangan.</p>';
+                    }
+                    
+                    // Show result
+                    resultDiv.style.display = 'block';
+                }
+            } catch (error) {
+                document.getElementById('loader').style.display = 'none';
+                alert('Terjadi kesalahan: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>

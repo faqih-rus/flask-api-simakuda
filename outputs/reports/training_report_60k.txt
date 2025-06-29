@@ -1,0 +1,38 @@
+NEURAL NETWORK FAST TRAINING REPORT - 60K DATASET
+============================================================
+
+Training Date: 2025-06-29 12:37:34
+Dataset: 60,000 records (2 weeks period)
+Architecture: Feed-Forward Neural Network sesuai skripsi
+Input Features: CO_PPM, CO2_PPM (2 neurons)
+Hidden Layer 1: 16 neurons dengan aktivasi ReLU
+Hidden Layer 2: 8 neurons dengan aktivasi ReLU
+Output Classes: Baik, Sedang, Tidak Sehat (3 neurons dengan aktivasi Softmax)
+
+TRAINING OPTIMIZATIONS:
+- Larger batch size (512) for faster processing
+- Reduced number of epochs with aggressive early stopping
+- Class weighting for handling class imbalance
+- L2 regularization to prevent overfitting
+
+PERFORMANCE METRICS:
+Overall Accuracy: 0.9958 (99.58%)
+
+Class-wise Performance:
+  Baik: 0.9955 (99.55%)
+  Buruk: 0.9976 (99.76%)
+  Sedang: 0.9950 (99.50%)
+
+Confusion Matrix:
+[[3888    0    7]
+ [   0 3126    0]
+ [  28   15 4936]]
+
+MODEL FILES (saved in models/saved directory):
+- air_quality_60k_model.h5 (main model)
+- air_quality_60k_model.tflite (TensorFlow Lite model)
+- scaler_60k.pkl (feature scaler)
+- label_encoder_60k.pkl (label encoder)
+
+READY FOR DEPLOYMENT!
+Model optimized for real-time air quality prediction
